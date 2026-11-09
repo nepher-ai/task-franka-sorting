@@ -1,0 +1,39 @@
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+.eggs/
+dist/
+build/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+.venv/
+
+# Omniverse
+**/*.dmp
+**/.thumbs
+
+# OS and editors
+.DS_Store
+Thumbs.db
+**/.idea/
+**/.vscode/
+*.swp
+
+# Training / runtime outputs
+logs/
+outputs/
+output/
+runs/
+datasets/
+recordings/
+videos/
+wandb/
+*.tmp
+
+# Highlight videos, exports, and the published checkpoint.
+best_policy/videos/
+best_policy/exported/
+best_policy/best_policy.pt
+best_policy/*

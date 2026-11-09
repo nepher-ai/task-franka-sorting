@@ -1,0 +1,77 @@
+# task-franka-sorting (full context)
+
+This file is the single-document context dump. Index: `llms.txt`. Human landing page: `README.md`.
+
+## What it is
+
+An Isaac Lab extension. A Franka arm with a Robotiq 2F-85 gripper sorts randomly placed industrial parts from a
+container into the cells of a `parts_tray_*` tray. Each cell takes one part type. The part-to-cell mapping is random per
+task and stated in the instruction text. Parts never overlap each other, the container walls or the tray.
+
+Stack: SortingPlanner (scripted stage machine) -> PPO tool-pose tracker (rsl_rl, `best_policy/best_policy.pt`) ->
+damped-least-squares IK -> 8-D absolute joint targets. Physics 180 Hz, control 15 Hz, enhanced determinism on.
+
+Planner stages: INIT, APPROACH, CLOSE, CARRY, OPEN, RETRACT, RECOVER, DONE. APPROACH needs the tool point within 6 mm
+(xy) and 7 mm (z) of the grasp centre. Tool-point coordinates are in the robot root frame.
+
+## Gym IDs
+
+| ID                                      | Use                                                  |
+| --------------------------------------- | ---------------------------------------------------- |
+| `Nepher-FrankaSorting-HL-Play-v0`       | Planner plus tracker, every task of a bundle         |
+| `Nepher-FrankaSorting-HL-EnvhubPlay-v0` | Same, loads `best_policy/best_policy.pt` (evaluator) |
+| `Nepher-FrankaSorting-LL-v0`            | Train the tracker                                    |
+| `Nepher-FrankaSorting-LL-Play-v0`       | Play the tracker                                     |
+
+## Assets and benchmarks
+
+The package ships only the robot USD. Everything else is in EnvHub bundles in `source/envhub/environments/`.
+
+- `franka-sorting-parts-v2`: 160 tasks in blocks of 16 that share one background, all assets and backgrounds. Append-only: task `i` is a pure function of `i`
+  and the library. A change of existing rows needs `--rewrite`.
+- `franka-sorting-parts-v0`, `-v1`: 16 tasks each, different seeds, the same tray library, with only the assets
+  they reference.
+- Containers: `grey_bin`, `purple_crate`, `container_f24`, `bin_b04`, `bin_a06`. Tasks sample oak, maple, bamboo, and black.
+- Trays: 1x1, 1x2, 2x2, 2x3. Cells are 150 mm by 200 mm and 6-8 cm deep, eight finishes, 32 trays.
+- A task sorts 3-6 part types. The bin holds 20-40 parts. Success is at least 4-6 parts in a correct cell within 30 s.
+- Parts are 3x, except nine wide variants (the square-window brackets, the two larger washers, the three large
+  plates, and `union_body_v3`) at 2.5x.
+- Container colliders are invisible boxes (floor slab and four walls). Deep bins are scaled down to 0.165 m depth
+  because `panda_link7` hangs about 0.156 m above the tool point.
+- Entities are named `obj0..objN`, container first.
+
+## Layout code (`source/franka_sorting/franka_sorting/layout/`)
+
+`sampler.py` places parts without overlap (`wall_clearance` 0.05 m). `validate.py` re-checks every layout.
+`instruction.py` writes the instruction text with the cell mapping. `catalog.py` reads the asset catalog.
+
+## SDG (`scripts/record_lerobot.py`)
+
+The parent process starts no Kit. It runs `record_shard.py` for each shard and retries a shard that stops short.
+State: `meta/sdg_state.json`. Report: `sdg_report.json`. Output: LeRobot v2.1, atomic writes, `info.json` last,
+`annotation.phase` per frame. Sources: `--source benchmark` (bundle tasks) and `--source procedural` (fresh layouts).
+Quality gates: too_short, too_long, nan, joint_limit, joint_jump (0.30 rad per step), gripper_range, blank_frames,
+invalid_start, lost_part, not_success.
+
+## Commands
+
+```bash
+./isaaclab.sh -p -m pip install -e "source/task-franka-sorting/source/franka_sorting[record]"
+./isaaclab.sh -p source/task-franka-sorting/scripts/record_lerobot.py --env_id franka-sorting-parts-v0 --episodes 8 --output datasets/sorting
+./isaaclab.sh play --task Nepher-FrankaSorting-HL-EnvhubPlay-v0 --num_envs 16 --viz none env.highlight=on "env.highlight_tasks=0-15"
+_isaac_sim\python.bat -m pytest source/task-franka-sorting/tests
+```
+
+## Files
+
+| Path                                                         | Role                              |
+| ------------------------------------------------------------ | --------------------------------- |
+| `README.md`                                                  | Landing page                      |
+| `llms.txt`                                                   | Agent index                       |
+| `source/franka_sorting/franka_sorting/tasks/hl_policy/`      | Planner, tracker, HL environment  |
+| `source/franka_sorting/franka_sorting/tasks/ll_policy/`      | Tracker environment and PPO cfg   |
+| `source/franka_sorting/franka_sorting/layout/`               | Layout sampler and validator      |
+| `source/franka_sorting/franka_sorting/benchmark/`            | Bundle loading, stage, success    |
+| `source/franka_sorting/franka_sorting/scene/`                | Robot, cameras, sensors, physics  |
+| `source/franka_sorting/franka_sorting/data/`                 | SDG plan, quality gates, writer   |
+| `source/build_sorting_benchmark/`                            | Writes the EnvHub bundles        |

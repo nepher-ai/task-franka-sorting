@@ -1,0 +1,23 @@
+[package]
+
+version = "0.1.0"
+category = "isaaclab"
+readme  = "README.md"
+
+title       = "Franka Sorting - Industrial Parts Sorting"
+author      = "Nepher Robotics"
+maintainer  = "Nepher Robotics"
+description = "Franka parts sorting: pick randomly placed industrial parts out of a container and sort them by type into the cells of a parts tray. Classical planner, learned low-level EE tracker, IK, absolute joint commands. Overlap-free synthetic data generation for LeRobot."
+repository  = ""
+keywords    = ["franka", "sorting", "bin-picking", "parts", "lerobot", "isaaclab"]
+
+[dependencies]
+"isaaclab"        = {}
+"isaaclab_assets" = {}
+"isaaclab_rl"     = {}
+"isaaclab_tasks"  = {}
+
+[[python.module]]
+name = "franka_sorting"
+
+[isaac_lab_settings]

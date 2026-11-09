@@ -1,0 +1,9 @@
+# Copyright (c) 2026, Nepher Robotics
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""Register the sorting tasks. Imported through the isaaclab.tasks entry point."""
+
+from . import hl_policy, ll_policy  # noqa: F401
+from .hl_policy.eval_compat import wrap_for_eval  # noqa: F401

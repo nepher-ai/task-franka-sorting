@@ -1,0 +1,80 @@
+# Copyright (c) 2026, Nepher Robotics
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""Relative tool-pose action turned into absolute joint targets by damped least-squares IK.
+
+The action is ``[dx, dy, dz, drx, dry, drz, grip]``. A positive grip entry closes the gripper.
+Each step writes absolute targets for the seven arm joints and the finger, in [rad].
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
+import torch
+
+from isaaclab.envs.mdp.actions.task_space_actions import DifferentialInverseKinematicsAction
+from isaaclab.utils import index_fill_
+
+from franka_sorting.scene.robot import GRIPPER_CLOSED_RAD
+
+from .ik_joint_action_cfg import IkJointCommandActionCfg
+
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedEnv
+
+
+class IkJointCommandAction(DifferentialInverseKinematicsAction):
+    """Relative tool-pose IK plus a binary gripper. The applied command is absolute joint targets."""
+
+    cfg: IkJointCommandActionCfg
+
+    def __init__(self, cfg: IkJointCommandActionCfg, env: ManagerBasedEnv):
+        super().__init__(cfg, env)
+        self._finger_ids, _ = self._asset.find_joints(cfg.finger_joint_name)
+        self._closed = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self._joint_command = torch.zeros(self.num_envs, self._num_joints + 1, device=self.device)
+
+    @property
+    def action_dim(self) -> int:
+        # Six tool-pose deltas and one gripper entry.
+        return self._ik_controller.action_dim + 1
+
+    @property
+    def joint_command(self) -> torch.Tensor:
+        """Last absolute targets [rad]: seven arm joints then the finger, ``[N, 8]``."""
+        return self._joint_command
+
+    @property
+    def gripper_closed(self) -> torch.Tensor:
+        """True where the last action closed the gripper, ``[N]``."""
+        return self._closed
+
+    def process_actions(self, actions: torch.Tensor):
+        self._raw_actions[:] = actions
+        self._processed_actions[:] = self._raw_actions * self._scale
+        self._closed = actions[:, -1] > 0.0
+        ee_pos, ee_quat = self._compute_frame_pose()
+        self._ik_controller.set_command(self._processed_actions[:, :-1], ee_pos, ee_quat)
+
+    def apply_actions(self):
+        ee_pos, ee_quat = self._compute_frame_pose()
+        joint_pos = self._asset.data.joint_pos.torch[:, self._joint_ids]
+        jacobian = self._compute_frame_jacobian()
+        target = self._ik_controller.compute(ee_pos, ee_quat, jacobian, joint_pos)
+        limits = self._asset.data.soft_joint_pos_limits.torch[:, self._joint_ids]
+        target = torch.clamp(target, limits[..., 0], limits[..., 1])
+        finger = torch.where(
+            self._closed, torch.full_like(target[:, 0], GRIPPER_CLOSED_RAD), torch.zeros_like(target[:, 0])
+        )
+        self._asset.set_joint_position_target_index(target=target, joint_ids=self._joint_ids)
+        self._asset.set_joint_position_target_index(target=finger[:, None], joint_ids=self._finger_ids)
+        self._joint_command[:, :-1] = target
+        self._joint_command[:, -1] = finger
+
+    def reset(self, env_ids: Sequence[int] | None = None) -> None:
+        super().reset(env_ids)
+        index_fill_(self._closed, env_ids, False)
