@@ -42,7 +42,8 @@ The `record` extra adds `pyarrow` and `av`. The `layout` extra adds `trimesh` an
 - Containers are `grey_bin`, `purple_crate`, `container_f24`, `bin_b04` and `bin_a06`. Tasks use the oak, maple,
   bamboo, and black tables.
 - Trays are 1x1, 1x2, 2x2 and 2x3. Each cell is 150 mm by 200 mm and 6-8 cm deep, in eight finishes (32 trays).
-  A task sorts 3-6 part types into a random combination of those trays. The bin holds 20-40 parts, dropped in a
+  A task sorts 3-6 part types into a random combination of those trays. Each bin and tray is seated on a
+  quarter turn, then turned by about 15° when that heading still fits on the table. The bin holds 20-40 parts, dropped in a
   pile. Success is sorting at least 4, 5, or 6 of them within 30 s. Parts left in the bin do not fail the task.
 - Parts are rebuilt at 3x, except nine wide variants at 2.5x. The bin holds a settled pile: the published task
   keeps the parts whose centers land inside the walls.

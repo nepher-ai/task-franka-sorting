@@ -50,7 +50,8 @@ class SamplerConfig:
     fill_range: tuple[float, float] = (0.20, 0.45)
     """Share of the usable floor area that the part footprints cover."""
     max_parts: int = 40
-    yaw_jitter: float = np.deg2rad(6.0)
+    yaw_jitter: float = np.deg2rad(15.0)
+    """Half-range [rad] added to a quarter-turn heading of a container or tray."""
     """Random yaw [rad] of the container and tray on top of the quarter turn."""
     placement_tries: int = 200
     layout_tries: int = 60
@@ -573,8 +574,8 @@ def _sample_furniture(
 ) -> tuple[tuple[float, float, float], tuple[tuple[float, float, float], ...]]:
     """Table poses of the container and every tray. A combination that does not pack is an error.
 
-    Poses are quarter turns. At that yaw the rectangles are axis-aligned, so a box gap is the real gap, and a
-    tight row beside a wide bin is found instead of missed by random pairing.
+    The row is packed on quarter turns, where a box gap is the real gap. Each body then takes its own heading
+    offset inside ``yaw_jitter``, so the published pose is not left parallel to the table edge.
     """
     region = container_pick_region(container, config)
     if region[0] <= 0.0 or region[1] <= 0.0:
@@ -600,11 +601,11 @@ def _sample_furniture(
         )
         if packed is not None:
             container_pose, chosen = packed
-            return _pose_tuple(container_pose, chosen)
+            return _with_yaw_jitter(rng, container, trays, container_pose, chosen, config, region)
     packed = _pack_flush(rng, container, trays, packing, floor)
     if packed is not None:
         container_pose, chosen = packed
-        return _pose_tuple(container_pose, chosen)
+        return _with_yaw_jitter(rng, container, trays, container_pose, chosen, config, region)
     names = ", ".join(tray.name for tray in trays)
     raise LayoutError(f"no packing of {names} beside {container.name}")
 
@@ -748,6 +749,59 @@ def _flush_next(
     bmax = np.stack([bounds[1][0] for bounds in blocks])
     clear = np.flatnonzero(_aabb_clear(tmin, tmax, bmin, bmax, config.object_gap))
     return [poses[i] for i in clear[:32]]
+
+
+def _with_yaw_jitter(rng, container, trays, container_pose, chosen, config, region):
+    """Quarter-turn packing plus one heading offset per body, of at most ``config.yaw_jitter`` [rad]."""
+    outlines = [container.outer_polygon, *[_tray_outline(tray) for tray in trays]]
+    reach = [geo.rectangle(*region), *[np.asarray(tray.cell_centers, dtype=np.float64) for tray in trays]]
+    jittered = _jitter_headings(rng, outlines, reach, [container_pose, *chosen], config)
+    return _pose_tuple(jittered[0], jittered[1:])
+
+
+def _jitter_headings(rng, outlines, reach, poses, config) -> list[np.ndarray]:
+    """Apply each body's own offset, sliding it a few centimetres if the seated spot has no room to turn."""
+    poses = [np.asarray(pose, dtype=np.float64).copy() for pose in poses]
+    worlds = [
+        geo.transform(outline, float(pose[2]), (float(pose[0]), float(pose[1])))
+        for outline, pose in zip(outlines, poses)
+    ]
+    for index in rng.permutation(len(poses)):
+        base = poses[index]
+        sign = float(rng.choice(np.array([-1.0, 1.0])))
+        offset = sign * float(config.yaw_jitter)
+        chosen = _fit_heading(base, offset, index, outlines, reach, worlds, config)
+        if chosen is None:
+            continue
+        poses[index] = chosen
+        worlds[index] = geo.transform(outlines[index], float(chosen[2]), (float(chosen[0]), float(chosen[1])))
+    return poses
+
+
+def _fit_heading(base, offset, index, outlines, reach, worlds, config) -> np.ndarray | None:
+    """Largest fraction of ``offset`` that stays on the table and clear of the other bodies.
+
+    The seated row is against the table edge, so the same heading is also tried a few centimetres away.
+    """
+    shifts = np.linspace(-0.18, 0.18, 10)
+    pairs = sorted(
+        ((float(dx), float(dy)) for dx in shifts for dy in shifts),
+        key=lambda item: item[0] * item[0] + item[1] * item[1],
+    )
+    for scale in (1.0, 0.8, 0.6):
+        yaw = geo.wrap_angle(float(base[2]) + offset * scale)
+        for dx, dy in pairs:
+            trial = np.array([float(base[0]) + float(dx), float(base[1]) + float(dy), yaw], dtype=np.float64)
+            if _heading_clear(trial, index, outlines, reach, worlds, config):
+                return trial
+    return None
+
+
+def _heading_clear(trial, index, outlines, reach, worlds, config) -> bool:
+    if not _filter_poses(trial[:2][None, :], np.array([trial[2]]), outlines[index], reach[index], config)[0]:
+        return False
+    world = geo.transform(outlines[index], float(trial[2]), (float(trial[0]), float(trial[1])))
+    return all(geo.polygons_clear(world, other, config.object_gap) for j, other in enumerate(worlds) if j != index)
 
 
 def _pose_tuple(

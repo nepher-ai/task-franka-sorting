@@ -830,15 +830,27 @@ class SortingPlanner:
     # ------------------------------------------------------------------ carrying to the cell
 
     def _occupants(self, index: int, goal: CellGoal) -> list[tuple[np.ndarray, float, float]]:
-        """``(center xy [m], radius [m], top z [m])`` of the other parts that already rest in the goal's cell."""
+        """``(center xy [m], radius [m], top z [m])`` of the other parts that already rest in the goal's cell.
+
+        Parts dropped into the cell before the episode are not goals. They still occupy the cell.
+        """
         found = []
+        seen = {goal.slot}
         for other in self.contexts[index].goals:
-            if other.slot == goal.slot or other.tray != goal.tray or other.cell != goal.cell:
+            if other.slot in seen or other.tray != goal.tray or other.cell != goal.cell:
                 continue
             if not self._in_cell(index, other.slot, goal):
                 continue
+            seen.add(other.slot)
             pos = self.tracker.root(index, other.slot)[0].astype(np.float64)
             found.append((pos[:2], self._radius(index, other.slot), self._top_z(other.slot, index)))
+        for placement in self._layout(index).placements:
+            if placement.asset.kind != "item" or placement.slot in seen:
+                continue
+            if not self._in_specific(index, placement.slot, goal.tray, goal.cell):
+                continue
+            pos = self.tracker.root(index, placement.slot)[0].astype(np.float64)
+            found.append((pos[:2], self._radius(index, placement.slot), self._top_z(placement.slot, index)))
         return found
 
     def _plan_carry(self, context: _Context, index: int) -> None:

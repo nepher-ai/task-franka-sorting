@@ -36,6 +36,12 @@ class Placement:
     quat_wxyz: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)
     scale: tuple[float, ...] | None = None
     kinematic: bool = False
+    home: str = ""
+    """``tray`` when the part was dropped into a tray cell. Empty for a part that starts in the bin."""
+    tray_slot: str = ""
+    """Scene slot of the tray that holds a tray-resident part."""
+    cell: int = -1
+    """Cell index in ``tray_slot``. ``-1`` for a bin part."""
 
 
 @dataclass
@@ -96,6 +102,9 @@ def layout_from_payload(payload: dict, *, time_limit_s: float = TASK_TIME_LIMIT_
             quat_wxyz=_quat(item),
             scale=tuple(float(value) for value in item["scale"]) if item.get("scale") else None,
             kinematic=bool(item.get("kinematic")),
+            home=str(item.get("home") or ""),
+            tray_slot=str(item.get("tray") or "") if item.get("home") == "tray" else "",
+            cell=int(item["cell"]) if item.get("home") == "tray" else -1,
         )
         for item in payload["placements"]
     ]

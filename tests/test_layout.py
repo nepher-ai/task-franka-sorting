@@ -189,6 +189,25 @@ def test_sorting_tasks_pack_and_state_the_quota(library):
                 assert name.replace("_", " ") in text
 
 
+def _off_cardinal(yaw: float) -> float:
+    folded = abs(float(yaw)) % (np.pi / 2.0)
+    return min(folded, np.pi / 2.0 - folded)
+
+
+def test_heading_jitter_is_about_fifteen_degrees_and_keeps_large_trays(library):
+    """The heading offset is the configured jitter, and a task still draws the wider tray grids."""
+    grids = set()
+    for seed in range(6):
+        layout = sample_sorting_task(np.random.default_rng(seed), library, "bin_a06")
+        grids.update(tray_grid(name) for name in layout.tray_list())
+    room = sample_sorting_task(np.random.default_rng(2), library, "container_f24")
+    turned = [_off_cardinal(room.container_pose[2])]
+    turned.extend(_off_cardinal(pose[2]) for pose in room.tray_pose_list())
+    assert max(turned) > np.deg2rad(8.0)
+    assert max(turned) <= SamplerConfig().yaw_jitter + 1e-6
+    assert grids & {"1x2", "2x2", "2x3"}
+
+
 def test_layout_is_deterministic_and_seed_dependent(library):
     first = sample_sorting_task(np.random.default_rng(7), library, "bin_b04")
     again = sample_sorting_task(np.random.default_rng(7), library, "bin_b04")

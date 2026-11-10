@@ -173,7 +173,7 @@ def layout_of_payload(payload: dict, table_top_z: float | None = None) -> Sortin
             cell=int(item["cell"]),
         )
         for item in payload["placements"]
-        if item["kind"] == "item"
+        if item["kind"] == "item" and item.get("home") != "tray"
     )
     container = by_slot[CONTAINER_SLOT]
     tray_names = tuple(payload.get("trays") or (payload["tray"],))

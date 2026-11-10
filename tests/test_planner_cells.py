@@ -113,8 +113,13 @@ def test_every_part_of_a_task_has_one_goal_for_the_cell_of_its_type(env_id):
     for layout in load_benchmark(root).layouts:
         goals = cells.cell_goals(layout)
         by_slot = layout.by_slot()
-        parts = [p.slot for p in layout.placements if p.asset.kind == "item"]
+        parts = [p.slot for p in layout.placements if p.asset.kind == "item" and p.home != "tray"]
         assert sorted(goal.slot for goal in goals) == sorted(parts)
+        for resident in layout.placements:
+            if resident.home != "tray":
+                continue
+            assert resident.asset.variant in layout.cell_map
+            assert resident.cell >= 0
         for goal in goals:
             assert goal.tray.startswith("tray")
             variant = by_slot[goal.slot].asset.variant

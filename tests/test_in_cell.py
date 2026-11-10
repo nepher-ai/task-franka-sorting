@@ -203,3 +203,39 @@ def test_stage_plan_keeps_container_and_tray_first_and_parks_on_distinct_slots()
             assert position == parking_position(index)
         position, _ = entity_pose(plan, benchmark.layouts, env, 2)
         assert position == layout.placements[2].position_m
+
+
+def test_a_tray_part_stays_in_its_cell_when_the_tray_turns():
+    import math
+
+    from franka_sorting.benchmark.episode import _follow_tray
+    from franka_sorting.benchmark.task import ObjectAsset, Placement
+    from franka_sorting.layout.sampler import quat_from_yaw
+
+    tray = Placement(
+        slot="tray_0",
+        asset=ObjectAsset("tray_0", (0.2, 0.2, 0.07), "tray", "assets/t.usd", "parts_tray"),
+        position_m=(0.5, 0.1, 0.0),
+        role="tray_0",
+        quat_wxyz=(1.0, 0.0, 0.0, 0.0),
+    )
+    local = CELLS[0]
+    part = Placement(
+        slot="part_20",
+        asset=ObjectAsset("part_20", (0.04, 0.04, 0.04), "item", "assets/p.usd", "cap_screw"),
+        position_m=(0.5 + float(local[0]), 0.1 + float(local[1]), 0.02),
+        role="part_20",
+        quat_wxyz=(1.0, 0.0, 0.0, 0.0),
+        home="tray",
+        tray_slot="tray_0",
+        cell=0,
+    )
+    position, _ = _follow_tray(part, tray, (0.2, -0.3, math.pi / 2), 0.0)
+    assert in_cell(
+        np.asarray(position, dtype=np.float64).reshape(1, 3),
+        np.array([0.2, -0.3, 0.0]),
+        np.asarray(quat_from_yaw(math.pi / 2)),
+        local,
+        HALF,
+        RIM,
+    )[0]
