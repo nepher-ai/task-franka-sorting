@@ -12,6 +12,7 @@ soak test. ``SORTING_ASSETS_BUNDLE`` points at another bundle than the master li
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 import numpy as np
@@ -23,7 +24,13 @@ Polygon, box, Point = shapely_geometry.Polygon, shapely_geometry.box, shapely_ge
 from franka_sorting.layout import geometry as geo  # noqa: E402
 from franka_sorting.layout import part_scale  # noqa: E402
 from franka_sorting.layout.catalog import load_library  # noqa: E402
-from franka_sorting.layout.instruction import build_instruction, view_cells, view_shape  # noqa: E402
+from franka_sorting.layout.instruction import (  # noqa: E402
+    build_instruction,
+    container_name as spoken_container,
+    display_name,
+    view_cells,
+    view_shape,
+)
 from franka_sorting.layout.sampler import (  # noqa: E402
     GRID_CELLS,
     SamplerConfig,
@@ -185,8 +192,11 @@ def test_sorting_tasks_pack_and_state_the_quota(library):
                 assert outline.distance(outline_c) >= config.object_gap - 1e-9, context
             text = build_instruction(layout, library.trays[layout.tray], library)
             assert f"at least {layout.quota}" in text
+            assert spoken_container(layout.container) in text
+            assert re.search(r"\bv\d+\b", text) is None
+            assert "1 rows" not in text and "1 columns" not in text
             for name in types:
-                assert name.replace("_", " ") in text
+                assert display_name(name) in text
 
 
 def _off_cardinal(yaw: float) -> float:
