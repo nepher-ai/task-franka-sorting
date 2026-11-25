@@ -65,7 +65,7 @@ SPEED_CAP_M_S = 0.45
 # under the empty-hand profile's acceleration.
 CARRY_A_MAX_M_S2 = 2.0
 # Motion profile (cruise [m/s], acceleration [m/s^2]). A clear pick has to finish in about 5 s, so four
-# picks fit the 30 s episode. Grasp tolerances are unchanged.
+# picks fit the 40 s episode. Grasp tolerances are unchanged.
 PROFILE = (0.40, 2.0)
 # Final vertical approach above a grasp [m].
 APPROACH_H_M = 0.07

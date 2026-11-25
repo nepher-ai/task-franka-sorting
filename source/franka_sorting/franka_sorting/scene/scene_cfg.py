@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Scene, physics, and asset wiring: 180 Hz physics, 15 Hz control, and the stage of a sorting benchmark."""
+"""Scene, physics, and asset wiring: 240 Hz physics, 15 Hz control, and the stage of a sorting benchmark."""
 
 from __future__ import annotations
 
@@ -43,8 +43,8 @@ from franka_sorting.scene.sensors import (
 )
 
 CONTROL_HZ = 15
-PHYSICS_HZ = 180
-EPISODE_LENGTH_S = 30.0
+PHYSICS_HZ = 240
+EPISODE_LENGTH_S = 40.0
 """Default episode length [s]. A benchmark stage sets its own ``time_limit_s``."""
 
 
@@ -102,7 +102,7 @@ class SortingSceneCfg(InteractiveSceneCfg):
 
 
 def apply_sorting_physics(cfg) -> None:
-    """180 Hz physics on a manager-based env cfg, so a command lands every 12 steps (15 Hz)."""
+    """240 Hz physics on a manager-based env cfg, so a command lands every 16 steps (15 Hz)."""
     cfg.episode_length_s = EPISODE_LENGTH_S
     set_physics_rate(cfg, PHYSICS_HZ)
     cfg.sim.physics = PhysxAutoCfg(isaacsim_physx=PhysxCfg())

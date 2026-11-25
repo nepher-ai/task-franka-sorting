@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Low-level tool-pose tracker, fine-tuned at 180 Hz physics and 15 Hz control.
+"""Low-level tool-pose tracker at 240 Hz physics and 15 Hz control.
 
 The policy sees 43 values and returns a 7-D action the IK term integrates.
 

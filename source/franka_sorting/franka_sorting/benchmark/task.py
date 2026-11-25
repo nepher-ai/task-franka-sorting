@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from .spec import SortingTaskSpec, spec_from_success
 
 # Episode budget written into a spec. The env cfg can run a different length.
-TASK_TIME_LIMIT_S = 30.0
+TASK_TIME_LIMIT_S = 40.0
 
 
 @dataclass(frozen=True)
