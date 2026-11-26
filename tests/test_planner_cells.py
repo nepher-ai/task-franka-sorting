@@ -7,25 +7,17 @@
 
 from __future__ import annotations
 
-import importlib.util
 import math
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
 from franka_sorting.benchmark.bundle import load_benchmark
+from franka_sorting.tasks.hl_policy.planner import cells
 
 PROJECT = Path(__file__).resolve().parents[1]
 ENVHUB = Path(os.environ.get("SORTING_ENVHUB", PROJECT.parent / "envhub" / "environments"))
-CELLS = PROJECT / "source/franka_sorting/franka_sorting/tasks/hl_policy/planner/cells.py"
-
-# The planner package imports Isaac Lab, so the pure module is loaded by path.
-_spec = importlib.util.spec_from_file_location("planner_cells", CELLS)
-cells = importlib.util.module_from_spec(_spec)
-sys.modules[_spec.name] = cells
-_spec.loader.exec_module(cells)
 
 
 def _axis_error(a: float, b: float) -> float:

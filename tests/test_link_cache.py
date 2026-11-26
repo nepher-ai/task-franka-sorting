@@ -3,21 +3,17 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""``link_cache.py`` makes idempotent junctions and never replaces a real directory."""
+"""``link_cache.py`` makes idempotent directory symlinks and never replaces a real directory."""
 
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
+import link_cache
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-
-import link_cache  # noqa: E402
-
-pytestmark = pytest.mark.skipif(os.name != "nt", reason="junctions are a Windows feature")
+pytestmark = pytest.mark.skipif(os.name != "nt", reason="the cache links are exercised on Windows")
 
 
 def _envhub(tmp_path: Path, *ids: str) -> Path:
@@ -35,7 +31,7 @@ def test_link_is_idempotent_and_repairs_a_wrong_target(tmp_path):
     assert (cache / "a" / "benchmark.yaml").is_file()
     os.rmdir(cache / "a")
     link_cache.link(cache, "b", envhub)
-    os.rename(cache / "b", cache / "a")  # a junction that points at b
+    os.rename(cache / "b", cache / "a")  # a link that points at b
     assert link_cache.link(cache, "a", envhub) == "repaired"
     assert Path(os.path.realpath(cache / "a")) == (envhub / "a").resolve()
     assert (envhub / "b" / "benchmark.yaml").is_file()  # the repair never touches the target

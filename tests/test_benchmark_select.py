@@ -5,16 +5,11 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "source" / "franka_sorting"))
-
-from franka_sorting.benchmark.bundle import ALL_TASKS  # noqa: E402
-from franka_sorting.benchmark_select import parse_task_indices, select_tasks, shared_background  # noqa: E402
+from franka_sorting.benchmark.bundle import ALL_TASKS
+from franka_sorting.benchmark_select import parse_task_indices, select_tasks, shared_background
 
 
 class _Benchmark:

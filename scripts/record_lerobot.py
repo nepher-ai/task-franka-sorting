@@ -27,24 +27,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
-import subprocess
-import sys
+import site
 import time
-import types
 from dataclasses import asdict
+from multiprocessing.spawn import get_executable
 from pathlib import Path
 
 import numpy as np
 
 PROJECT = Path(__file__).resolve().parents[1]
-PACKAGE = PROJECT / "source" / "franka_sorting" / "franka_sorting"
-
-# The orchestrator only needs the pure modules: skip the package init, which loads Isaac Lab.
-if "franka_sorting" not in sys.modules:
-    _stub = types.ModuleType("franka_sorting")
-    _stub.__path__ = [str(PACKAGE)]
-    sys.modules["franka_sorting"] = _stub
+site.addsitedir(str(PROJECT / "source" / "franka_sorting"))
 
 from franka_sorting.benchmark.bundle import ALL_TASKS, DEFAULT_ENV_ID, load_benchmark, resolve_bundle  # noqa: E402
 from franka_sorting.benchmark_select import parse_task_indices, select_tasks  # noqa: E402
@@ -234,12 +228,13 @@ def run_shard(shard: ShardSpec, state: SdgState, output: Path, options: dict) ->
         )
         shard.status = RUNNING
         save_state(output / "meta", state)
-        command = [sys.executable, str(WORKER), "--spec", str(spec_path), *passthrough]
+        command = [get_executable(), str(WORKER), "--spec", str(spec_path), *passthrough]
         if args.gui and not {"--visualizer", "--viz"} & set(passthrough):
             command += ["--visualizer", "kit"]
         print(f"[SDG] shard {shard.index} attempt {shard.attempt}: {len(shard.tasks)} tasks", flush=True)
         started = time.time()
-        code = subprocess.call(command)
+        # A fresh interpreter per shard, so one Kit crash does not take the orchestrator with it.
+        code = os.spawnv(os.P_WAIT, command[0], command)
         shard.elapsed_s += time.time() - started
         result = json.loads(result_path.read_text(encoding="utf-8")) if result_path.is_file() else None
         if result is not None:
@@ -301,7 +296,7 @@ def main() -> None:
         flush=True,
     )
     if final[DONE] != len(state.shards):
-        sys.exit(1)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

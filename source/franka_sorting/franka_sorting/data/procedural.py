@@ -14,8 +14,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
-import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -129,24 +127,20 @@ def write_shard_bundle(master: str | Path, target: str | Path, payloads: Sequenc
 
 
 def link_directory(source: Path, link: Path) -> None:
-    """Make ``link`` show ``source``: a junction on Windows (no privilege needed), a symlink elsewhere. Idempotent."""
+    """Make ``link`` a directory symlink to ``source``. Idempotent."""
     if link.exists() or link.is_symlink():
         if link.resolve() == source.resolve():
             return
         raise FileExistsError(f"{link} exists and is not a link to {source}")
-    if sys.platform == "win32":
-        done = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(source)], capture_output=True, text=True)
-        if done.returncode != 0:
-            raise OSError(f"mklink /J {link} failed: {done.stdout.strip()} {done.stderr.strip()}")
-    else:
-        os.symlink(source, link, target_is_directory=True)
+    os.symlink(source, link, target_is_directory=True)
 
 
 def unlink_directory(link: Path) -> None:
     """Remove a link made by :func:`link_directory` without touching the folder it shows."""
-    if not link.is_symlink() and sys.platform != "win32":
-        raise ValueError(f"{link} is not a link")
     if link.is_symlink():
         link.unlink()
-    else:
+        return
+    if os.name == "nt" and hasattr(os.path, "isjunction") and os.path.isjunction(link):
         link.rmdir()
+        return
+    raise ValueError(f"{link} is not a link")

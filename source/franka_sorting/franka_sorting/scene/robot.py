@@ -61,7 +61,7 @@ def with_position_iterations(robot, iterations: int):
     )
 
 
-def _solver_props(props: list, position_iterations: int = 64) -> list:
+def _solver_props(props: list, position_iterations: int = 32) -> list:
     """Self-collision off, ``position_iterations`` position iterations, and no velocity iterations."""
     updated = []
     for prop in props:

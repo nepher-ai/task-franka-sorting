@@ -7,18 +7,15 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from franka_sorting.benchmark.bundle import load_benchmark  # noqa: E402
-from franka_sorting.data.procedural import procedural_tasks, unlink_directory, write_shard_bundle  # noqa: E402
-from franka_sorting.data.quality import PANDA_JOINT_LOWER, PANDA_JOINT_UPPER, QualityLimits, check_episode  # noqa: E402
-from franka_sorting.data.randomize import RandomizeConfig, draw_camera, draw_lighting  # noqa: E402
-from franka_sorting.data.sdg_plan import (  # noqa: E402
+from franka_sorting.benchmark.bundle import load_benchmark
+from franka_sorting.data.procedural import procedural_tasks, unlink_directory, write_shard_bundle
+from franka_sorting.data.quality import PANDA_JOINT_LOWER, PANDA_JOINT_UPPER, QualityLimits, check_episode
+from franka_sorting.data.randomize import RandomizeConfig, draw_camera, draw_lighting
+from franka_sorting.data.sdg_plan import (
     DONE,
     PENDING,
     RUNNING,
@@ -31,8 +28,6 @@ from franka_sorting.data.sdg_plan import (  # noqa: E402
     start_or_resume,
     summarize,
 )
-
-import conftest  # noqa: E402,F401  (stubs the package init)
 
 ENVHUB = Path(__file__).resolve().parents[2] / "envhub" / "environments"
 MASTER = ENVHUB / "franka-sorting-parts-v2"

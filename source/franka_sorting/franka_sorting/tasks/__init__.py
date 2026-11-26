@@ -3,7 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Register the sorting tasks. Imported through the isaaclab.tasks entry point."""
+"""Sorting tasks.
 
-from . import hl_policy, ll_policy  # noqa: F401
-from .hl_policy.eval_compat import wrap_for_eval  # noqa: F401
+Importing :mod:`franka_sorting` registers the Gym environments. This package stays importable on its own so a
+pure submodule, such as the planner's cell math, does not load Isaac Lab.
+"""

@@ -6,18 +6,13 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
+from franka_sorting.data.lerobot_writer import LeRobotWriter
 
 pq = pytest.importorskip("pyarrow.parquet")
-
-PACKAGE = Path(__file__).resolve().parents[1] / "source" / "franka_sorting"
-sys.path.insert(0, str(PACKAGE))
-
-from franka_sorting.data.lerobot_writer import LeRobotWriter  # noqa: E402
 
 
 def _episode(length: int, seed: int = 0):

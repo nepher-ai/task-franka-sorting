@@ -14,15 +14,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
-import types
+import site
 from pathlib import Path
 
-PACKAGE = Path(__file__).resolve().parents[1] / "source" / "franka_sorting" / "franka_sorting"
-if "franka_sorting" not in sys.modules:
-    _stub = types.ModuleType("franka_sorting")
-    _stub.__path__ = [str(PACKAGE)]
-    sys.modules["franka_sorting"] = _stub
+site.addsitedir(str(Path(__file__).resolve().parents[1] / "source" / "franka_sorting"))
 
 from franka_sorting.benchmark.bundle import DEFAULT_ENV_ID, load_benchmark, resolve_bundle  # noqa: E402
 

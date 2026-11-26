@@ -18,8 +18,13 @@ import numpy as np
 from .stage import resolve_surface, surface_pose
 from .task import Placement, TaskLayout
 
-PARK_Z_M = 3.0
-"""Env-frame height [m] of the parking plate top: far above every camera view."""
+PARK_Z_M = 6.0
+"""Env-frame height [m] of the parking plate top.
+
+The Kit viewport camera looks from z = 3. A plate top at that height covers the corner env, so the
+camera starts inside the mesh and the viewport is black. 6 m stays above that camera and the
+observation cameras.
+"""
 
 PARK_SPACING_M = 0.14
 PARK_COLUMNS = 8

@@ -9,8 +9,14 @@ from __future__ import annotations
 
 from typing import Any
 
-# Gym registration. Importing the package loads the task entry points.
-from . import tasks  # noqa: F401
+# Gym registration runs when Isaac Lab is installed. Pure scripts and tests import this package without it.
+try:
+    import isaaclab  # noqa: F401
+except ImportError:
+    isaaclab = None
+else:
+    from .tasks import ll_policy as _ll_policy  # noqa: F401
+    from .tasks.hl_policy import registration as _hl_registration  # noqa: F401
 
 __version__ = "0.1.0"
 

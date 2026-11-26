@@ -18,7 +18,6 @@ Run through the parent. To run a shard by hand::
 
 import argparse
 import json
-import sys
 import time
 from collections import Counter
 from pathlib import Path
@@ -32,7 +31,7 @@ parser = argparse.ArgumentParser(description="Record one shard of planner demons
 parser.add_argument("--spec", type=str, required=True, help="Shard spec written by record_lerobot.py.")
 parser.add_argument("--result", type=str, default=None, help="Where to write the result. Next to the spec by default.")
 
-args_cli, _ = parser.parse_known_args()
+args_cli, launcher_rest = parser.parse_known_args()
 SPEC = json.loads(Path(args_cli.spec).read_text(encoding="utf-8"))
 SHARD = ShardSpec(**SPEC["shard"])
 OPTIONS = SPEC["options"]
@@ -56,7 +55,7 @@ ACTIVE = [task for task in SHARD.tasks if QUOTA[task] > 0]
 if not ACTIVE:
     write_result({"complete": True, "tried": 0, "saved": 0, "rejected": {}, "elapsed_s": 0.0})
     print(f"[SHARD {SHARD.index}] nothing left to record", flush=True)
-    sys.exit(0)
+    raise SystemExit(0)
 
 # The remaining imports start Isaac Sim.
 from isaaclab.app import AppLauncher  # noqa: E402
@@ -64,7 +63,7 @@ from isaaclab.app import AppLauncher  # noqa: E402
 # Other arguments (--headless, --device, ...) belong to the AppLauncher.
 launcher_parser = argparse.ArgumentParser()
 AppLauncher.add_app_launcher_args(launcher_parser)
-launcher_args, _ = launcher_parser.parse_known_args([a for a in sys.argv[1:] if a not in ("--spec", args_cli.spec)])
+launcher_args, _ = launcher_parser.parse_known_args(launcher_rest)
 if OPTIONS["cameras"]:
     launcher_args.enable_cameras = True
 app_launcher = AppLauncher(launcher_args)
