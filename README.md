@@ -12,8 +12,6 @@
 
 **task-franka-sorting** is a [Nepher Robotics](https://github.com/nepher-ai) extension for [NVIDIA Isaac Lab](https://isaac-sim.github.io/IsaacLab) / [Isaac Sim](https://docs.omniverse.nvidia.com/isaacsim/latest/overview.html). It runs a **Franka** arm with a **Robotiq 2F-85** gripper that picks industrial parts out of a bin or crate and sorts them into the cells of a parts tray. Each cell takes one part type. The mapping is random per task and stated in the instruction. A sorting planner chooses each grasp and place. An **RSL-RL PPO** policy tracks that tool pose. **Damped least-squares IK** turns the tracker action into **8-D absolute joint targets**.
 
-Use this repository when you need Isaac Lab Gym environments for Franka **parts sorting** (`Nepher-FrankaSorting-LL-*`, `Nepher-FrankaSorting-HL-*`), the EnvHub benchmark `franka-sorting-parts-v0`, or sharded **LeRobot v2.1** synthetic data.
-
 | | |
 |---|---|
 | **Robot** | Franka with a Robotiq 2F-85 gripper |
@@ -24,11 +22,6 @@ Use this repository when you need Isaac Lab Gym environments for Franka **parts 
 | **Tracker observation** | 43 values: arm position and velocity, gripper, tool pose, pose error, pose target, grip target, last action |
 | **Tracker action** | 7-D tool-pose delta plus gripper, integrated to absolute joint targets |
 | **Joint action** | 8 values: 7 absolute joint targets [rad], gripper 0 (open) or 1 (closed) |
-| **Episode** | 40 s. The bin holds 20-40 parts. A task sorts 3-6 part types |
-| **Success** | At least 4, 5, or 6 parts in the instructed cells, held for 0.5 s. Parts left in the container are allowed |
-| **Eval** | EnvHub `franka-sorting-parts-v0` (16 tasks) |
-| **Cameras** | `cam_exterior_left`, `cam_exterior_right`, `cam_wrist`, `cam_front` |
-| **Dataset** | LeRobot v2.1, sharded and resumable, written by `scripts/record_lerobot.py` |
 | **License** | BSD 3-Clause |
 
 ## How it runs
@@ -41,11 +34,6 @@ Train the tracker first, then play the planner on top of that checkpoint.
 
 - **High level.** `SortingPlanner` picks one part at a time out of the container and sets it into its tray cell. Motion is a rest-to-rest polyline, so the tool cruises at the speed the evaluator rewards and stops at the grasp and at the release. Every placement is checked against the benchmark `in_cell` predicate. A part that leaves its cell is picked up again.
 - **Low level.** The PPO policy tracks the planner's tool pose and gripper command. Its 7-D action is a tool-pose delta plus the gripper. `IkJointCommandAction` turns that into absolute joint targets, the same 8-D action space a downstream policy writes. Training uses 4096 envs, observation noise, and an 8 s episode. About 35% of the pose targets are level, leaning, or pitched, so the tracker keeps the poses the planner uses at the edge of the workspace.
-- **Scene.** Layout sampling and validation live in `franka_sorting/layout/`. Benchmark loading and success live in `franka_sorting/benchmark/`. The stage lives in `franka_sorting/scene/`. `scripts/link_cache.py` links the EnvHub bundles into the nepher cache, so no download is needed.
-
-### Episode success
-
-The success expression has to hold on the current state and stay true for 0.5 s. A published task asks for at least 4, 5, or 6 parts in the cells named by the instruction, inside the 40 s episode. Parts still in the bin do not fail the task. A lost object, one that falls off the table or leaves the workspace, ends the episode as a failure and never counts as success. The checks are in `franka_sorting/benchmark/success.py`.
 
 ## Gym environments
 
@@ -55,18 +43,6 @@ The success expression has to hold on the current state and stay true for 0.5 s.
 | `Nepher-FrankaSorting-LL-Play-v0` | Play the tracker (32 envs, no noise) |
 | `Nepher-FrankaSorting-HL-Play-v0` | Planner plus tracker on every selected task in one stage. Loads the latest tracker checkpoint |
 | `Nepher-FrankaSorting-HL-EnvhubPlay-v0` | The same layout, for eval-nav. Loads `best_policy/best_policy.pt` |
-
-`scripts/list_envs.py` lists them. `./isaaclab.sh train` and `play` discover these through the `isaaclab.tasks` entry point. The Gym registration names rsl_rl, so `--rl_library` is not passed.
-
-Both high-level tasks load the EnvHub benchmark `franka-sorting-parts-v0`, 16 tasks.
-
-**One stage, all selected tasks.** The high-level env builds one stage for the selected tasks (`env.task_id=all`, or one task id). `scene.num_envs` defaults to one env per task. `--num_envs` is that count or a whole multiple of it (`16`, `32`, `64`, ...). Env `i` runs task `i % T` and resets on its own, and every selected task is in the stage together.
-
-## Benchmarks
-
-| Bundle | Tasks | Content |
-| --- | --- | --- |
-| `franka-sorting-parts-v0` | 16 | Eval benchmark. Shared tray library, four tables, copies only the assets it references |
 
 ## Install
 
