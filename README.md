@@ -31,14 +31,6 @@ Use this repository when you need Isaac Lab Gym environments for Franka **parts 
 | **Dataset** | LeRobot v2.1, sharded and resumable, written by `scripts/record_lerobot.py` |
 | **License** | BSD 3-Clause |
 
-## Who this is for
-
-- Researchers training a **Franka tool-pose tracker** in Isaac Lab, then running it under a classical sorting planner.
-- Tournament evaluation on the EnvHub bundle **`franka-sorting-parts-v0`**. The high-level env puts every task of the bundle in one stage.
-- Synthetic data for imitation learning. This repository records **LeRobot v2.1** episodes itself. `sdg-gen` can run the same Gym task from `configs/task-franka-sorting.yaml`.
-
-The package ships the robot USD. Containers, tables, parts, trays, and `*.hdr` backgrounds live in the EnvHub bundles. Those bundles are written by the separate `build_sorting_benchmark` project. `best_policy/best_policy.pt` is the published tracker checkpoint (rsl_rl, weights only), fine-tuned from the tabletop tracker.
-
 ## How it runs
 
 ```
@@ -76,12 +68,6 @@ Both high-level tasks load the EnvHub benchmark `franka-sorting-parts-v0`, 16 ta
 | --- | --- | --- |
 | `franka-sorting-parts-v0` | 16 | Eval benchmark. Shared tray library, four tables, copies only the assets it references |
 
-Containers are `grey_bin`, `purple_crate`, `container_f24`, `bin_b04`, and `bin_a06`. Tasks use the oak, maple, bamboo, and black tables.
-
-Trays are 1x1, 1x2, 2x2, and 2x3. Each cell is 150 mm by 200 mm and 6-8 cm deep, in eight finishes (32 trays). A task sorts 3-6 part types into a random combination of those trays. Each bin and tray is seated on a quarter turn, then turned by about 15° when that heading still fits on the table. The bin holds 20-40 parts, dropped in a pile.
-
-Parts are rebuilt at 3x, except nine wide variants at 2.5x. The published task keeps the parts whose centers land inside the walls. Deep bins are flattened to 0.165 m so the wrist link clears the rim. Their colliders are invisible boxes (a floor slab and four walls), because the source meshes pop parts out.
-
 ## Install
 
 Isaac Sim has to run with its bundled Python, so every command goes through `./isaaclab.sh` from the Isaac Lab root. On Windows the same commands start with `isaaclab.bat`. Inside that tree this package is `source/task-franka-sorting/source/franka_sorting`.
@@ -113,50 +99,6 @@ Isaac Lab 3 does not have a `--headless` flag. `--viz none` runs without a windo
 ./isaaclab.sh play --task Nepher-FrankaSorting-HL-EnvhubPlay-v0 --num_envs 16 --viz none \
     env.highlight=on "env.highlight_tasks=0-15"
 ```
-
-## LeRobot synthetic data
-
-`scripts/record_lerobot.py` is a sharded, resumable orchestrator. The parent process starts no Kit. It runs `scripts/record_shard.py` once per shard, and a shard that stops short or crashes is retried (`--retries`). Its state is in `meta/sdg_state.json`, and `sdg_report.json` summarises the run.
-
-- `--source benchmark` records the tasks of `--env_id` (or `--task`). `--source procedural` samples fresh layouts per shard (`--shards`).
-- `--episodes` is the number of successful episodes kept per task. An existing dataset is extended, and an interrupted run resumes (`--restart` discards the saved plan, not the saved episodes).
-- Randomization: `--randomize poses` (default) draws a new layout every episode, and `--randomize none` replays the published layout. Lighting is randomized unless `--no_lighting`, and `--camera_jitter` and `--arm_noise` set the camera extrinsics jitter and the arm start noise.
-- Quality gates drop an episode that is too short or too long, has NaNs, leaves the joint limits, jumps more than 0.30 rad per step, leaves the gripper range, has blank frames, starts invalid, loses a part, or does not succeed. `--keep_failed` saves failed episodes with a label.
-- Output is a LeRobot v2.1 dataset. Files are written atomically (`info.json` last), and `annotation.phase` holds the planner stage of each frame.
-
-```bash
-./isaaclab.sh -p source/task-franka-sorting/scripts/record_lerobot.py --env_id franka-sorting-parts-v0 --list_tasks
-./isaaclab.sh -p source/task-franka-sorting/scripts/record_lerobot.py --env_id franka-sorting-parts-v0 \
-    --episodes 8 --output datasets/sorting
-./isaaclab.sh -p source/task-franka-sorting/scripts/record_lerobot.py --dry_run --source procedural --shards 4
-```
-
-Without `--cameras` only the state is recorded. With cameras use `--num_envs 8` or fewer per shard.
-
-The separate `sdg-gen` project can record the same task. Its `configs/task-franka-sorting.yaml` captures 8-D joint state, tool pose, the four cameras, and the absolute joint-target action.
-
-## FAQ
-
-**What robot and simulator does this target?**
-A Franka arm with a Robotiq 2F-85 gripper, in NVIDIA Isaac Sim 6.1.0 with Isaac Lab 3.0. Physics steps at 240 Hz. The policy command lands every 16 steps, at 15 Hz.
-
-**What does the tracker observe and output?**
-The observation is 43 values: 7 arm positions, 7 arm velocities, gripper, 7-D tool pose, 6-D pose error, 7-D pose target, grip target, and the last 7-D action. The action is a 7-D tool-pose delta plus the gripper. `IkJointCommandAction` integrates it with damped least-squares IK into absolute joint targets.
-
-**How is an episode a success?**
-At least 4, 5, or 6 parts have to sit in the cells named by the instruction, and that predicate has to stay true for 0.5 s, within the 40 s episode. Parts left in the container are allowed. A lost object ends the episode as a failure.
-
-**Which Gym ID should I start with?**
-Train `Nepher-FrankaSorting-LL-v0`, then play the planner with `Nepher-FrankaSorting-HL-Play-v0`. For eval-nav, use `Nepher-FrankaSorting-HL-EnvhubPlay-v0`, which loads `best_policy/best_policy.pt`.
-
-**Which EnvHub bundle loads by default?**
-`franka-sorting-parts-v0` (16 tasks). `scripts/link_cache.py` links the bundle into the nepher cache.
-
-**Where does the tracker checkpoint load from?**
-`Nepher-FrankaSorting-LL-Play-v0` and `Nepher-FrankaSorting-HL-Play-v0` load the latest `model_*.pt` under `logs/rsl_rl/franka_sorting_ll_ee_tracking` unless you pass `--checkpoint`. `Nepher-FrankaSorting-HL-EnvhubPlay-v0` loads `best_policy/best_policy.pt`.
-
-**How do I record a LeRobot dataset?**
-Run `scripts/record_lerobot.py`. `--source benchmark` records a published bundle. `--source procedural` samples new layouts. Successful episodes are kept, and a stopped run resumes.
 
 ## License
 
